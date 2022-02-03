@@ -23,6 +23,8 @@ WIDTH, HEIGHT  = 1181, 741
 
 def get_len(dot1, dot2):
     return sqrt((dot2.x - dot1.x)**2 + (dot2.y - dot1.y)**2 + (dot2.z - dot1.z)**2)
+def get_diff(dot1, dot2):
+    return dot2.x - dot1.x + dot2.y - dot1.y + dot2.z - dot1.z
 
 def sign_(x):
     if x >= 0:
@@ -34,9 +36,6 @@ class Dot:
         self.x = x_
         self.y = y_
         self.z = z_
-
-    def __eq__(self, other):
-        return bool (self.x == other.x and self.y == other.y and self.z == other.z)
         
     def rotateX(self, teta):
         teta = teta * pi / 180
@@ -111,7 +110,27 @@ class Impulse:
         self.t = 0.0
         self.to_kill = 0
         self.sign = 1.0
-        self.passed_route = 0.0
+        self.step_len = self.get_step_len(self.direction[0])
+
+
+    def get_step_len(self, direction):
+        tmp_DOt = copy.deepcopy(direction)
+        tmp_t = (self.delta * self.sign)
+        
+        tmp_DOt.x =    self.direction[0].x * (1 - tmp_t)**3 +\
+                                3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.x + \
+                                3 * (1 - tmp_t) * (tmp_t)**2 * self.neur.cur_par2.x + \
+                                (tmp_t)**3 * self.direction[1].x
+
+        tmp_DOt.y =    self.direction[0].y * (1 - tmp_t)**3 + \
+                                3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.y + \
+                                3 * (1 - tmp_t) * (tmp_t)**2 * self.neur.cur_par2.y + \
+                                (tmp_t)**3 * self.direction[1].y
+        tmp_DOt.z =    self.direction[0].z * (1 - tmp_t)**3 + \
+                                3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.z + \
+                                3 * (1 - tmp_t) * tmp_t**2 * self.neur.cur_par2.z + \
+                                tmp_t**3 * self.direction[1].z
+        return get_len(direction, tmp_DOt)
 
     def move(self, neur_):
 
@@ -119,16 +138,16 @@ class Impulse:
             #self.impulse.y = self.a_y * pow(self.t,3) + self.b_y * pow(self.t,2) + self.c_y * self.t + self.direction[0].y
             #self.impulse.z = self.a_z * pow(self.t,3) + self.b_z * pow(self.t,2) + self.c_z * self.t + self.direction[0].z
             #print("T IS ", self.t)
-            tmp_dot = copy.deepcopy(self.impulse)
-            self.impulse.x =    self.direction[0].x * pow(1 - self.t,3) +\
-                                3 * pow(1 - self.t,2) * self.t * neur_.cur_par1.x + \
-                                3 * (1 - self.t) * pow(self.t,2) * neur_.cur_par2.x + \
-                                pow(self.t,3) * self.direction[1].x
 
-            self.impulse.y =    self.direction[0].y * pow(1 - self.t,3) + \
-                                3 * pow(1 - self.t,2) * self.t * neur_.cur_par1.y + \
-                                3 * (1 - self.t) * pow(self.t,2) * neur_.cur_par2.y + \
-                                pow(self.t,3) * self.direction[1].y
+            self.impulse.x =    self.direction[0].x * (1 - self.t)**3 +\
+                                3 * (1 - self.t)**2 * self.t * neur_.cur_par1.x + \
+                                3 * (1 - self.t) * (self.t)**2 * neur_.cur_par2.x + \
+                                (self.t)**3 * self.direction[1].x
+
+            self.impulse.y =    self.direction[0].y * (1 - self.t)**3 + \
+                                3 * (1 - self.t)**2 * self.t * neur_.cur_par1.y + \
+                                3 * (1 - self.t) * (self.t)**2 * neur_.cur_par2.y + \
+                                (self.t)**3 * self.direction[1].y
             self.impulse.z =    self.direction[0].z * (1 - self.t)**3 + \
                                 3 * (1 - self.t)**2 * self.t * neur_.cur_par1.z + \
                                 3 * (1 - self.t) * self.t**2 * neur_.cur_par2.z + \
@@ -136,17 +155,18 @@ class Impulse:
             #self.direction[0].x = self.impulse.x
             #self.direction[0].y = self.impulse.y
             #self.direction[0].z = self.impulse.z
-            self.passed_route += get_len(tmp_dot, self.impulse)
             self.t += (self.delta * self.sign)
-            #РАЗОБРАТЬСЯ С ЭТИМ ЯВНО, ЧТОБЫ НЕ БЫЛО ЗАМЫКАНИЙ НЕЙРОНОВ, А ТО КАК ИНСУЛЬТ ТУДА СЮДА ТУДА СЮДА
-            if self.t >= 1:
-                self.to_kill = 1
-                print("KILLED")
-                #self.to_kill = 1
-# ТУТ ТИПА ПОПАЕМ ИМПУЛЬС ИЗ НЕЙРОНА, НАМ ПОНАДОБИТСЯ ПОЗЖЕ ДЛЯ ОСВОБОЖДЕНИЯ ПАМЯТ
-            #if (self.to_kill == 1):
-            #    print("KILLED ", self.neur.d1.x, self.neur.d1.y, self.neur.d1.z,"---", self.neur.d2.x, self.neur.d2.y, self.neur.d2.z,)
-            #    self.neur.impulses.pop(self.neur.impulses.index(self))
+            if (self.sign < 0.0):
+                if  self.t <= 0  :
+                        self.sign *= -1.0
+                        #self.impulse = copy.deepcopy(self.direction[0])
+                        #self.step_len = self.get_step_len(self.direction[0])
+            else:
+                if self.t >= 1:
+                        self.sign *= -1.0
+                        #self.impulse = copy.deepcopy(self.direction[1])
+                        #self.step_len = self.get_step_len(self.direction[1])
+                
 
     def transform(self, tetax, tetay, tetaz, center):
         self.impulse.transform(tetax, tetay, tetaz, center)
@@ -174,14 +194,11 @@ class Neur:
         self.cur_par2 = cp_2_
         self.impulse_amount = 0
         self.impulses = []
-        self.neibours = []
-        self.len = 0.0
     def generate_impulse(self):
         path = QPainterPath()
         path.moveTo(self.d1.x, HEIGHT - self.d1.y)
         path.cubicTo(self.cur_par1.x, self.cur_par1.y, self.cur_par2.x, self.cur_par2.y, self.d2.x, HEIGHT - self.d2.y)
         delta = 1 / path.length()
-        self.len = path.length()
         self.impulses.append(Impulse(self, self.d1, self.d2, delta))
         self.impulse_amount += 1
     def transform(self, tetax, tetay, tetaz, center):
@@ -256,22 +273,15 @@ def get_neurs(file):
                 #Dot_to = random.choice(parts)
                 curve_param_1 = Dot(random.randint(340, 750), random.randint(100, 650), random.choice(parts).z)
                 curve_param_2 = Dot(random.randint(340, 750), random.randint(100, 650), random.choice(parts).z)
-                Neur_ = Neur(Dot_from, curve_param_1, curve_param_2, min_Dot)
+                Neur_ = Neur(Dot_from, curve_param_1, curve_param_2, min_Dot)# ИЛИ ВМЕСТО min_Dot Dot_to
                 neurs.append(Neur_)
         i += 1
                     
 
     #neurs = random.sample(neurs, len(neurs) // 1)
-    add_neibours(neurs)
     for i in neurs:
         i.generate_impulse()
     return neurs
-def add_neibours(neurs):
-    for i in range(len(neurs)):
-        for j in range(len(neurs)):
-            if (i != j):
-                if (neurs[i].d2 == neurs[j].d1):
-                    neurs[i].neibours.append(neurs[j])
 def get_other_parts(file):
     parts = []
     f = open(data_folder + file, 'r')
@@ -565,8 +575,6 @@ class Window(QtWidgets.QMainWindow):
                         if ( self.neurs[i].impulses[j].to_kill == 1):
                             self.neurs[i].impulses.pop()
                             self.neurs[i].impulse_amount -= 1
-                            for k in range(len(self.neurs[i].neibours)):
-                                self.neurs[i].neibours[k].generate_impulse()
                             
                         else:
                             self.neurs[i].impulses[j].move(self.neurs[i])
