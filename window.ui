@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Алгоритм плавающего горизонта</string>
+   <string>Impulses</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QGraphicsView" name="view">

@@ -23,6 +23,8 @@ WIDTH, HEIGHT  = 1181, 741
 
 def get_len(dot1, dot2):
     return sqrt((dot2.x - dot1.x)**2 + (dot2.y - dot1.y)**2 + (dot2.z - dot1.z)**2)
+def get_diff(dot1, dot2):
+    return dot2.x - dot1.x + dot2.y - dot1.y + dot2.z - dot1.z
 
 def sign_(x):
     if x >= 0:
@@ -108,6 +110,27 @@ class Impulse:
         self.t = 0.0
         self.to_kill = 0
         self.sign = 1.0
+        self.step_len = self.get_step_len(self.direction[0])
+
+
+    def get_step_len(self, direction):
+        tmp_DOt = copy.deepcopy(direction)
+        tmp_t = (self.delta * self.sign)
+        
+        tmp_DOt.x =    self.direction[0].x * (1 - tmp_t)**3 +\
+                                3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.x + \
+                                3 * (1 - tmp_t) * (tmp_t)**2 * self.neur.cur_par2.x + \
+                                (tmp_t)**3 * self.direction[1].x
+
+        tmp_DOt.y =    self.direction[0].y * (1 - tmp_t)**3 + \
+                                3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.y + \
+                                3 * (1 - tmp_t) * (tmp_t)**2 * self.neur.cur_par2.y + \
+                                (tmp_t)**3 * self.direction[1].y
+        tmp_DOt.z =    self.direction[0].z * (1 - tmp_t)**3 + \
+                                3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.z + \
+                                3 * (1 - tmp_t) * tmp_t**2 * self.neur.cur_par2.z + \
+                                tmp_t**3 * self.direction[1].z
+        return get_len(direction, tmp_DOt)
 
     def move(self, neur_):
 
@@ -115,15 +138,16 @@ class Impulse:
             #self.impulse.y = self.a_y * pow(self.t,3) + self.b_y * pow(self.t,2) + self.c_y * self.t + self.direction[0].y
             #self.impulse.z = self.a_z * pow(self.t,3) + self.b_z * pow(self.t,2) + self.c_z * self.t + self.direction[0].z
             #print("T IS ", self.t)
-            self.impulse.x =    self.direction[0].x * pow(1 - self.t,3) +\
-                                3 * pow(1 - self.t,2) * self.t * neur_.cur_par1.x + \
-                                3 * (1 - self.t) * pow(self.t,2) * neur_.cur_par2.x + \
-                                pow(self.t,3) * self.direction[1].x
 
-            self.impulse.y =    self.direction[0].y * pow(1 - self.t,3) + \
-                                3 * pow(1 - self.t,2) * self.t * neur_.cur_par1.y + \
-                                3 * (1 - self.t) * pow(self.t,2) * neur_.cur_par2.y + \
-                                pow(self.t,3) * self.direction[1].y
+            self.impulse.x =    self.direction[0].x * (1 - self.t)**3 +\
+                                3 * (1 - self.t)**2 * self.t * neur_.cur_par1.x + \
+                                3 * (1 - self.t) * (self.t)**2 * neur_.cur_par2.x + \
+                                (self.t)**3 * self.direction[1].x
+
+            self.impulse.y =    self.direction[0].y * (1 - self.t)**3 + \
+                                3 * (1 - self.t)**2 * self.t * neur_.cur_par1.y + \
+                                3 * (1 - self.t) * (self.t)**2 * neur_.cur_par2.y + \
+                                (self.t)**3 * self.direction[1].y
             self.impulse.z =    self.direction[0].z * (1 - self.t)**3 + \
                                 3 * (1 - self.t)**2 * self.t * neur_.cur_par1.z + \
                                 3 * (1 - self.t) * self.t**2 * neur_.cur_par2.z + \
@@ -132,20 +156,17 @@ class Impulse:
             #self.direction[0].y = self.impulse.y
             #self.direction[0].z = self.impulse.z
             self.t += (self.delta * self.sign)
-            #РАЗОБРАТЬСЯ С ЭТИМ ЯВНО, ЧТОБЫ НЕ БЫЛО ЗАМЫКАНИЙ НЕЙРОНОВ, А ТО КАК ИНСУЛЬТ ТУДА СЮДА ТУДА СЮДА
-            if (self.sign < EPS):
-                if  get_len(self.impulse, self.direction[0]) <= 5  or self.t < abs(self.delta / 2):
+            if (self.sign < 0.0):
+                if  get_len(self.impulse, self.direction[0]) < self.step_len  :
                         self.sign *= -1.0
+                        self.impulse = copy.deepcopy(self.direction[0])
+                        self.step_len = self.get_step_len(self.direction[0])
             else:
-                if ( get_len(self.impulse, self.direction[1]) <= 5 or abs(self.t - 1.0) < abs(self.delta / 2)):
+                if ( get_len(self.impulse, self.direction[1]) < self.step_len):
                         self.sign *= -1.0
+                        self.impulse = copy.deepcopy(self.direction[1])
+                        self.step_len = self.get_step_len(self.direction[1])
                 
-                #print("KILLED")
-                #self.to_kill = 1
-# ТУТ ТИПА ПОПАЕМ ИМПУЛЬС ИЗ НЕЙРОНА, НАМ ПОНАДОБИТСЯ ПОЗЖЕ ДЛЯ ОСВОБОЖДЕНИЯ ПАМЯТ
-            #if (self.to_kill == 1):
-            #    print("KILLED ", self.neur.d1.x, self.neur.d1.y, self.neur.d1.z,"---", self.neur.d2.x, self.neur.d2.y, self.neur.d2.z,)
-            #    self.neur.impulses.pop(self.neur.impulses.index(self))
 
     def transform(self, tetax, tetay, tetaz, center):
         self.impulse.transform(tetax, tetay, tetaz, center)
