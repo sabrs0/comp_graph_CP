@@ -4,7 +4,7 @@ from PyQt5.QtGui import QPen, QImage, QPixmap, qRgb, qRgba, QPainter, QColor, QB
 from PyQt5.QtCore import Qt, QPoint, QTimer
 from math import sin, cos, exp, sqrt
 import numpy as np
-from math import pi, sin, cos, fabs
+from math import pi, sin, cos, fabs,acos
 import time
 import copy
 from threading import Thread
@@ -13,16 +13,8 @@ data_folder = "data\\"
 EPS = 1e-9
 WIDTH, HEIGHT  = 1181, 741
 
-#
-#
-#
-#
-# В move для impulse измени так, чтобы не было замыканий где if (self.sign < EPS):
-#
-#
-
-def get_len(dot1, dot2):
-    return sqrt((dot2.x - dot1.x)**2 + (dot2.y - dot1.y)**2 + (dot2.z - dot1.z)**2)
+def get_len_koord(x1,y1,z1,x2,y2,z2):
+        return sqrt((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)
 def get_diff(dot1, dot2):
     return dot2.x - dot1.x + dot2.y - dot1.y + dot2.z - dot1.z
 
@@ -36,7 +28,6 @@ class Dot:
         self.x = x_
         self.y = y_
         self.z = z_
-        
     def rotateX(self, teta):
         teta = teta * pi / 180
         y_temp = self.y;
@@ -44,7 +35,6 @@ class Dot:
 
         self.y = y_temp * cos(teta) - z_temp * sin(teta);
         self.z = y_temp * sin(teta) + z_temp * cos(teta);
-
 
     def rotateY(self, teta):
         teta = teta * pi / 180
@@ -55,7 +45,6 @@ class Dot:
         self.x = x_temp * cos(teta) + z_temp * sin(teta);
         self.z = -x_temp * sin(teta) + z_temp * cos(teta);
 
-
     def rotateZ(self, teta):
         teta = teta * pi / 180
         x_temp = self.x;
@@ -64,7 +53,6 @@ class Dot:
 
         self.x = x_temp * cos(teta) - y_temp * sin(teta);
         self.y = x_temp * sin(teta) + y_temp * cos(teta);
-    
     
     def transform(self, tetax, tetay, tetaz, center):
 
@@ -80,7 +68,9 @@ class Dot:
         self.rotateZ(tetaz)
         self.x += center[0]; self.y += center[1]; self.z += center[2];
         
-        self.x, self.y, self.z = round(self.x), round(self.y), round(self.z)        
+        self.x, self.y, self.z = round(self.x), round(self.y), round(self.z)
+    def get_len(self, dot2):
+        return sqrt((dot2.x - self.x)**2 + (dot2.y - self.y)**2 + (dot2.z - self.z)**2)
 
 
 class Impulse:
@@ -130,7 +120,7 @@ class Impulse:
                                 3 * (1 - tmp_t)**2 * tmp_t * self.neur.cur_par1.z + \
                                 3 * (1 - tmp_t) * tmp_t**2 * self.neur.cur_par2.z + \
                                 tmp_t**3 * self.direction[1].z
-        return get_len(direction, tmp_DOt)
+        return direction.get_len( tmp_DOt)
 
     def move(self, neur_):
 
@@ -218,6 +208,7 @@ def get_parts_dots(file):
             one_part.append(int(data[1]))
             one_part.append(int(data[2]))
             parts.append(one_part)
+    parts = random.sample(parts, len(parts) // 4)
     return parts
 '''def get_neurs(file):
     parts = []
@@ -266,8 +257,8 @@ def get_neurs(file):
             for j in range(branches):
                 min_len = 999999999
                 for k in range(len(copy_parts)):
-                    if get_len(Dot_from, copy_parts[k]) < min_len:
-                        min_len = get_len(Dot_from, copy_parts[k])
+                    if Dot_from.get_len( copy_parts[k]) < min_len:
+                        min_len = Dot_from.get_len( copy_parts[k])
                         min_Dot = copy_parts[k]
                 copy_parts.pop(copy_parts.index(min_Dot))
                 #Dot_to = random.choice(parts)
@@ -282,6 +273,45 @@ def get_neurs(file):
     for i in neurs:
         i.generate_impulse()
     return neurs
+#угол между двумя прямыми, заданными в виде х1 у1 х2 у2
+def get_angle(x1,y1,z1, x2,y2,z2):
+    return acos(fabs(x1*x2 + y1*y2 + z1*z2) / sqrt((x1**2 + y1**2 + z1**2) * (x2**2 + y2**2 + z2**2))) * 180 / pi
+def get_mesh(parts):
+    '''
+    mesh = [
+                [1,2,3]
+                [4,5,6]
+                [7,8,9]
+           ]'''
+    mesh = [[] * 1 for i in range(len(parts))]
+    for i in range(len(parts)):
+        if i % 100 == 0:
+            print("mesh: ", i, " of ", len(parts))
+        cyc_len = 3
+        for k in range(cyc_len):
+            if len(mesh[i]) == 3:
+                break;
+            min_ = 9999999
+            min_ind = 0
+            flag = 0
+            for j in range(len(parts)):
+                
+                angle = get_angle(parts[i][0], parts[i][1], parts[i][2], parts[j][0], parts[j][1], parts[j][2])
+                if i != j  and j not in mesh[i] and angle < 180 and angle > 0:
+                    if i in mesh[j] and j < i:
+                        cyc_len -= 1
+                        continue;
+
+                    leng = get_len_koord(parts[i][0], parts[i][1], parts[i][2], parts[j][0], parts[j][1], parts[j][2])
+                    if leng < min_:
+                            min_ = leng
+                            min_ind = j
+            if (flag == 0 and cyc_len != 0):
+                mesh[i].append(min_ind)
+                mesh[min_ind].append(i)
+        #print(mesh[i])
+    return mesh
+                    
 def get_other_parts(file):
     parts = []
     f = open(data_folder + file, 'r')
@@ -419,7 +449,7 @@ def tranform(x, y, z, tetax, tetay, tetaz, center):
     #y = y * M + shy
     return round(x), round(y), round(z)
 def other_horizon_dots(scene_width, scene_hight,
-                  tx, ty, tz, image, parts, neurs, center):
+                  tx, ty, tz, image, parts, mesh, neurs, center):
     x_right = -1
     y_right = -1
     x_left = -1
@@ -464,19 +494,38 @@ def other_horizon_dots(scene_width, scene_hight,
                     painter.setBrush(QBrush(QColor(qRgba(255, 223, 0, 128))))
                     painter.drawEllipse(QPoint(j.impulse.x, scene_hight - j.impulse.y), 4, 4)
                     #image.setPixel(j.impulse.x, scene_hight - j.impulse.y, qRgba(255, 223, 0, 255))
-    # инициализация переменных
+    
     x_right = -1
     y_right = -1
     x_left = -1
     y_left = -1
 
     # инициализация массивов горизонтов
+    
+    for i in range(len(parts)):
+                parts[i][0], parts[i][1], parts[i][2] = tranform(parts[i][0], parts[i][1], parts[i][2], tx, ty, tz, center)
+    painter.setPen(QPen(QColor(qRgba(128, 128, 128, 255))))
+    for i in range(len(mesh)):
+                #if x_left != -1:
+                
+                for j in range(len(mesh[i])):    
+                    painter.drawLine(parts[i][0], scene_hight - parts[i][1], parts[mesh[i][j]][0], scene_hight - parts[mesh[i][j]][1])
+                #x_left = mesh[i][0]
+                #y_left = parts[i][1]
+    '''
+    x_right = -1
+    y_right = -1
+    x_left = -1
+    y_left = -1
+
+    # инициализация массивов горизонтов
+    
     for i in range(len(parts)):
                 parts[i][0], parts[i][1], parts[i][2] = tranform(parts[i][0], parts[i][1], parts[i][2], tx, ty, tz, center)
                 if x_left != -1:
                     image.setPixel(x_left, image.height() - y_left, qRgba(128, 128, 128, 255))#qRgba(128, 128, 128, 255))
                 x_left = parts[i][0]
-                y_left = parts[i][1]
+                y_left = parts[i][1]'''
     return image
 
 
@@ -563,7 +612,7 @@ class Window(QtWidgets.QMainWindow):
         self.neurs = get_neurs("neurs_dots.txt")
         self.parts_dots = get_parts_dots("parts_dots.txt")
         self.center = get_center(self.parts)
-
+        self.mesh = get_mesh(self.parts_dots)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_)
         self.timer.start(1000 / self.vel)
@@ -590,11 +639,11 @@ class Window(QtWidgets.QMainWindow):
 
 
         copy_parts_dots = copy.deepcopy(self.parts_dots)
-        
+        copy_mesh = copy.deepcopy(self.mesh)
         copy_neurs = copy.deepcopy(self.neurs)
         
         self.image = other_horizon_dots(self.scene.width(), self.scene.height(),
-                      tx, ty, tz, self.image, copy_parts_dots, copy_neurs, self.center)
+                      tx, ty, tz, self.image, copy_parts_dots, copy_mesh, copy_neurs, self.center)
         self.move_impulses()
         
         
@@ -617,12 +666,13 @@ def draw(win):
 
 
     copy_parts_dots = copy.deepcopy(win.parts_dots)
+    copy_mesh = copy.deepcopy(win.mesh)
     
     copy_neurs = copy.deepcopy(win.neurs)
     
     #win.move_impulses()
     win.image = other_horizon_dots(win.scene.width(), win.scene.height(),
-                  tx, ty, tz, win.image, copy_parts_dots, copy_neurs, win.center)
+                  tx, ty, tz, win.image, copy_parts_dots, copy_mesh, copy_neurs, win.center)
 
     
     
