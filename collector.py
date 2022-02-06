@@ -375,26 +375,25 @@ def plot_front(brain,ax_3d, fig):
     copy_top = copy.deepcopy(brain['top'])
     copy_top.sort(key = get_1)
     ind = 20; step = 5; y_next = copy_top[0][1] + step; minuses_ind = 0; pluses_ind = 0
-    minuses = [copy.deepcopy(brain['front_minus_5']), copy.deepcopy(brain['front_minus_4']), copy.deepcopy(brain['front_minus_3']), copy.deepcopy(brain['front_minus_2']), copy.deepcopy(brain['front_minus_1']), copy.deepcopy(brain['front'])]
-    pluses = [copy.deepcopy(brain['front_plus_1']), copy.deepcopy(brain['front_plus_2']), copy.deepcopy(brain['front_plus_3']), copy.deepcopy(brain['front_plus_4']), copy.deepcopy(brain['front_plus_5'])]
+    minuses = [copy.deepcopy(brain['front_minus_5']), copy.deepcopy(brain['front_minus_4']),
+               copy.deepcopy(brain['front_minus_3']), copy.deepcopy(brain['front_minus_2']),
+               copy.deepcopy(brain['front_minus_1']), copy.deepcopy(brain['front'])]
+    pluses = [copy.deepcopy(brain['front_plus_1']), copy.deepcopy(brain['front_plus_2']),
+              copy.deepcopy(brain['front_plus_3']), copy.deepcopy(brain['front_plus_4']),
+              copy.deepcopy(brain['front_plus_5'])]
+    
     cur_len_slice = get_wid(minuses[0])
-    wid_top = get_wid(brain['top'])
-    j = 0;
-    while j < len(copy_top):
-        cur_y = copy_top[j][1]
+    wid_top = 0#get_wid(brain['top'])
+    for i in range(len(copy_top)):
+        cur_y = copy_top[i][1]
         cur_line = []
-        while(j < len(copy_top) and copy_top[j][1] == cur_y):
+        for j in range(len(copy_top)):
+            if (copy_top[j][1] == cur_y):
                 cur_line.append(copy_top[j])
-                j += 1
-                if (len(cur_line) <= 1):
-                    if (len(cur_line) < 1): 
-                        continue
-                    else:
-                        appender_x = get_simmetry_x(cur_line[0][0], xc) 
-                        cur_line.append([appender_x, cur_line[0][1]])
-                if (get_wid(cur_line) >= wid_top):
-                    wid_top_index = j - len(cur_line)
-                    break
+        cur_wid = get_wid(cur_line)
+        if cur_wid >= wid_top:
+            wid_top = cur_wid
+            wid_top_index = i
     print(copy_top[wid_top_index], " SHIROTA")
     front_parts = []
     one_part = []
@@ -823,21 +822,21 @@ def move_to_point(brain, px, py):
 def read_brain(file) :
     print("reading file", file)
     file = open(data_folder + file, 'r')
-    brain_left = []
-    brain_right = []
+    brain = []
     ind = 0
     for line in file:
-        if (ind >= 2):
+        #if (ind >= 2):
             data = line.split()
-            brain_left.append([int(data[0]), int(data[1])]); brain_right.append([int(data[2]), int(data[3])])
-        ind += 1
+            brain.append([int(data[0]), int(data[1])])
+        #ind += 1
 
-    brain_right.reverse()
-    ans = brain_left + brain_right
-    ans.append(brain_left[0])
-    ans.remove(ans[0])
+    #brain_right.reverse()
+    #ans = brain_left + brain_right
+    #ans.append(brain_left[0])
+    #brain.append(brain[0])
+    #brain.remove(brain[0])
     
-    return ans
+    return brain#ans
 
 
 
