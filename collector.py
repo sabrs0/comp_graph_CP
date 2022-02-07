@@ -369,31 +369,32 @@ def closing_distance(parts):
     parts += parts_added
     parts.sort(key = get_1)
 
-def plot_front(brain,ax_3d, fig):
+def plot_front(brain,ax_3d, fig, side_part):
     xc,yc = get_center(brain['top'])
     print(xc, yc, " - CENTER")
     copy_top = copy.deepcopy(brain['top'])
     copy_top.sort(key = get_1)
     ind = 20; step = 5; y_next = copy_top[0][1] + step; minuses_ind = 0; pluses_ind = 0
-    minuses = [copy.deepcopy(brain['front_minus_5']), copy.deepcopy(brain['front_minus_4']),
-               copy.deepcopy(brain['front_minus_3']), copy.deepcopy(brain['front_minus_2']),
-               copy.deepcopy(brain['front_minus_1']), copy.deepcopy(brain['front'])]
-    pluses = [copy.deepcopy(brain['front_plus_1']), copy.deepcopy(brain['front_plus_2']),
-              copy.deepcopy(brain['front_plus_3']), copy.deepcopy(brain['front_plus_4']),
-              copy.deepcopy(brain['front_plus_5'])]
-    
+    minuses = [copy.deepcopy(brain['front_minus_5']), copy.deepcopy(brain['front_minus_4']), copy.deepcopy(brain['front_minus_3']), copy.deepcopy(brain['front_minus_2']), copy.deepcopy(brain['front_minus_1']), copy.deepcopy(brain['front'])]
+    pluses = [copy.deepcopy(brain['front_plus_1']), copy.deepcopy(brain['front_plus_2']), copy.deepcopy(brain['front_plus_3']), copy.deepcopy(brain['front_plus_4']), copy.deepcopy(brain['front_plus_5'])]
     cur_len_slice = get_wid(minuses[0])
-    wid_top = 0#get_wid(brain['top'])
-    for i in range(len(copy_top)):
-        cur_y = copy_top[i][1]
+    wid_top = get_wid(brain['top'])
+    j = 0;
+    while j < len(copy_top):
+        cur_y = copy_top[j][1]
         cur_line = []
-        for j in range(len(copy_top)):
-            if (copy_top[j][1] == cur_y):
+        while(j < len(copy_top) and copy_top[j][1] == cur_y):
                 cur_line.append(copy_top[j])
-        cur_wid = get_wid(cur_line)
-        if cur_wid >= wid_top:
-            wid_top = cur_wid
-            wid_top_index = i
+                j += 1
+                if (len(cur_line) <= 1):
+                    if (len(cur_line) < 1): 
+                        continue
+                    else:
+                        appender_x = get_simmetry_x(cur_line[0][0], xc) 
+                        cur_line.append([appender_x, cur_line[0][1]])
+                if (get_wid(cur_line) >= wid_top):
+                    wid_top_index = j - len(cur_line)
+                    break
     print(copy_top[wid_top_index], " SHIROTA")
     front_parts = []
     one_part = []
@@ -533,6 +534,24 @@ def plot_front(brain,ax_3d, fig):
     one_part.append([copy_top[max_ind][1]])
     one_part.append([0])
     front_parts.append(one_part)
+    
+    for i in range(len(side_part)):
+        cur_y = side_part[i][0]
+        #print("CUR Y = ", cur_y)
+        height = min(side_part, key = lambda x: x[0] == cur_y and x[1])[1]
+        #print("height is", height)
+        for j in range(len(front_parts)):
+            if(front_parts[j][1][0] == cur_y):
+                max_z = min(front_parts[j][2])
+                diff = fabs(fabs(max_z) - fabs(height))
+                if fabs(max_z) >= fabs(height):
+                    mnoj = 1
+                else:
+                    mnoj = -1
+                for k in range(len(front_parts[j][2])):
+                    front_parts[j][2][k] = int(front_parts[j][2][k] + mnoj * diff)
+        
+        
     return front_parts
     
 def plot_side(brain, ax_3d, fig):
@@ -563,11 +582,15 @@ def plot_side(brain, ax_3d, fig):
         x_side = get_np(([brain['top'][i_start1][0]] * len(side_part)),len(side_part))
         y_side = get_np(get_x(side_part),len(side_part))
         z_side = get_np(get_y(side_part),len(side_part))
-        #ax_3d.plot(x_side, y_side, z_side, color = 'c')
+        ax_3d.plot(x_side, y_side, z_side, color = 'c')
                 
         i_start1 += step
         i_start2 += step
-    return side_parts
+
+
+        ####TESTING
+    side_part = min(side_parts, key = lambda x: min(x[2]))
+    return side_part
 def plot_top(brain, ax_3d, fig):
     
 
@@ -583,11 +606,11 @@ def get_plots(brain):
 
     plot_top(brain, ax_3d, fig)
 
-    #side_parts = plot_side(brain, ax_3d, fig)
+    side_parts = plot_side(brain, ax_3d, fig)
 
-    front_parts = plot_front(brain, ax_3d, fig)
+    front_parts = plot_front(brain, ax_3d, fig, side_parts)
 
-    #fig.show()
+    fig.show()
     return front_parts
 def get_min(parts, ind):
     if (ind == 0):
@@ -822,21 +845,21 @@ def move_to_point(brain, px, py):
 def read_brain(file) :
     print("reading file", file)
     file = open(data_folder + file, 'r')
-    brain = []
+    brain_left = []
+    brain_right = []
     ind = 0
     for line in file:
-        #if (ind >= 2):
+        if (ind >= 2):
             data = line.split()
-            brain.append([int(data[0]), int(data[1])])
-        #ind += 1
+            brain_left.append([int(data[0]), int(data[1])]); brain_right.append([int(data[2]), int(data[3])])
+        ind += 1
 
-    #brain_right.reverse()
-    #ans = brain_left + brain_right
-    #ans.append(brain_left[0])
-    #brain.append(brain[0])
-    #brain.remove(brain[0])
+    brain_right.reverse()
+    ans = brain_left + brain_right
+    ans.append(brain_left[0])
+    ans.remove(ans[0])
     
-    return brain#ans
+    return ans
 
 
 
